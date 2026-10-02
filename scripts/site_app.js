@@ -191,8 +191,11 @@ function matches(i) {
   if (findType === 'poster' && !i.poster) return false;
   if (!query) return false;
   const q = query.toLowerCase();
+  // divKo and typeKo are here so 고분자 and 포스터 find something; the rest of
+  // the record is English.
   return (i.title + ' ' + i.presenter + ' ' + i.affiliation + ' ' + i.code + ' ' +
-    i.track + ' ' + i.authors.join(' ')).toLowerCase().includes(q);
+    i.track + ' ' + i.division + ' ' + (i.divKo || '') + ' ' + (i.typeKo || '') +
+    ' ' + i.authors.join(' ')).toLowerCase().includes(q);
 }
 // The input is built once and never replaced. Re-rendering it under a typing
 // thumb loses the caret, and re-focusing it afterwards reopens the phone

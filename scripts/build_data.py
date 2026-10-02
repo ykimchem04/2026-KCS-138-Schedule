@@ -65,6 +65,17 @@ DIV_ABBR = {
     "Environmental Energy": "ENVR", "Industrial Chemistry": "IND", "KCS": "KCS",
 }
 
+# The API is English end to end - titles, affiliations, division names. At a
+# Korean conference the obvious search is 고분자, and English-only data answers
+# it with nothing, so the division names go into the index in both languages.
+DIV_KO = {
+    "PHYS": "물리화학", "MAT": "재료화학", "INOR": "무기화학",
+    "ORGN": "유기화학", "ANAL": "분석화학", "MEDI": "의약화학",
+    "POLY": "고분자화학", "ELEC": "전기화학", "LIFE": "생명화학",
+    "EDU": "화학교육", "ENVR": "환경에너지", "IND": "공업화학",
+    "KCS": "대한화학회",
+}
+
 TIME_RE = re.compile(r"^(\d{1,2})[:.](\d{2})\s*[-~–]\s*(\d{1,2})[:.](\d{2})$")
 
 
@@ -129,6 +140,7 @@ def main():
             "authors": [x.get("name", "") for x in a.get("authors", [])],
             "division": a.get("division", ""),
             "div": DIV_ABBR.get(a.get("division", ""), "KCS"),
+            "divKo": DIV_KO.get(DIV_ABBR.get(a.get("division", ""), "KCS"), ""),
             "track": a.get("track", ""), "trackCode": a.get("trackCode", ""),
             "type": a.get("type", ""), "typeKo": a.get("typeKo", ""),
             "date": date, "start": start, "end": end,
@@ -178,7 +190,7 @@ def main():
             "venue": "수원컨벤션센터", "source": "kchem.org/conf/kcs138",
         },
         "days": [{"date": d, "weekday": w, "n": n} for n, (d, w) in sorted(DAYS.items())],
-        "divisions": sorted({(it["div"], it["division"]) for it in items}),
+        "divisions": sorted({(it["div"], it["division"], it["divKo"]) for it in items}),
         "halls": sorted({it["hall"] for it in items if it["hall"]}),
         "posterSessions": posters,
         "fixed": fixed,

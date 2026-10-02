@@ -22,26 +22,7 @@
   --hl:#FFF3BF; --hl-ink:#191A1C;
   --sans:'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;
   --tabh:56px; --maxw:1340px;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --navy:#7FB0E8; --blue:#6AA3E0; --blue-soft:#16243A;
-    --bg:#121417; --panel:#181B1F; --tint:#1C2025; --inactive:#22262B;
-    --ink:#E8EAED; --ink-2:#C6CAD0; --ink-3:#9AA0A8; --ink-4:#7A8089;
-    --line:#2B3036; --line-2:#23272C;
-    --warn:#F2897F; --warn-soft:#331C1A;
-    --hl:#4A411C; --hl-ink:#F3E9B8;
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --navy:#7FB0E8; --blue:#6AA3E0; --blue-soft:#16243A;
-  --bg:#121417; --panel:#181B1F; --tint:#1C2025; --inactive:#22262B;
-  --ink:#E8EAED; --ink-2:#C6CAD0; --ink-3:#9AA0A8; --ink-4:#7A8089;
-  --line:#2B3036; --line-2:#23272C;
-  --warn:#F2897F; --warn-soft:#331C1A;
-  --hl:#4A411C; --hl-ink:#F3E9B8;
-  color-scheme:dark;
+  color-scheme:light;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -87,6 +68,7 @@ h3.sub{
   padding-bottom:7px;border-bottom:1px solid var(--line);
 }
 h3.sub:first-child{margin-top:0}
+h3.sub .n{float:right;font-weight:500;color:var(--ink-3);font-size:12px}
 .empty{color:var(--ink-3);font-size:14px;padding:34px 0;text-align:center}
 
 /* ---------- pill tabs (society convention) ---------- */
@@ -237,14 +219,14 @@ dialog.sheet::backdrop{background:rgba(10,20,34,.45)}
 /* ---------- bottom bar (phone only) ---------- */
 nav.tabs{
   position:fixed;left:0;right:0;bottom:0;z-index:40;
-  display:grid;grid-template-columns:repeat(5,1fr);
+  display:grid;grid-template-columns:repeat(6,1fr);
   border-top:1px solid var(--line);background:var(--panel);
   padding:5px 2px calc(5px + env(safe-area-inset-bottom,0px));
 }
 nav.tabs button{
   font:inherit;background:none;border:0;cursor:pointer;color:var(--ink-4);
   display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;
-  font-size:10.5px;font-weight:500;min-height:46px;
+  font-size:10px;font-weight:500;min-height:46px;letter-spacing:-.02em;
 }
 nav.tabs button svg{width:20px;height:20px}
 nav.tabs button[aria-selected="true"]{color:var(--navy);font-weight:700}
@@ -282,6 +264,7 @@ nav.tabs button[aria-selected="true"]{color:var(--navy);font-weight:700}
   <section class="screen" id="s-sched" hidden></section>
   <section class="screen" id="s-find" hidden></section>
   <section class="screen" id="s-plan" hidden></section>
+  <section class="screen" id="s-talks" hidden></section>
   <section class="screen" id="s-poster" hidden></section>
 </main>
 
@@ -296,6 +279,8 @@ nav.tabs button[aria-selected="true"]{color:var(--navy);font-weight:700}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M19.5 19.5L16 16"/></svg>검색</button>
   <button role="tab" aria-selected="false" data-s="plan">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M12 4.5l2.3 4.9 5.2.7-3.8 3.7.9 5.2-4.6-2.5-4.6 2.5.9-5.2-3.8-3.7 5.2-.7z"/></svg>내 일정</button>
+  <button role="tab" aria-selected="false" data-s="talks">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h7a2 2 0 0 1 2 2v11a1.6 1.6 0 0 0-1.6-1.6H4z"/><path d="M20 5.5h-7a2 2 0 0 0-2 2v11a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg>강연</button>
   <button role="tab" aria-selected="false" data-s="poster">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="3.5" width="16" height="13" rx="1.5"/><path d="M9 20.5h6M12 16.5v4"/></svg>포스터</button>
 </nav>
@@ -621,6 +606,52 @@ function renderPlan() {
   setMeta(list.length ? `담은 발표 ${list.length}건` : '아직 비어 있음');
 }
 
+/* ------------------------------------------------------------------ lectures */
+// The invited programme: plenaries, award lectures and the symposium talks that
+// fill them. The 102 Oral Presentations are deliberately out - every one of
+// those tracks is a "Young" or "Early-Career" session, so they are the students'
+// half of the meeting, not the invited faculty's.
+const LECTURE_TYPES = new Set([
+  'Plenary Lecture', 'Award Lecture', 'Award Lecture in Division', 'Symposium']);
+const LECTURES = ITEMS.filter(i => LECTURE_TYPES.has(i.type))
+  .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+// Division order: most lectures first, but the society-wide symposia last -
+// they belong to no division and would otherwise head the list.
+const LECTURE_DIVS = (() => {
+  const n = {};
+  LECTURES.forEach(i => { n[i.div] = (n[i.div] || 0) + 1; });
+  return Object.keys(n).sort((a, b) =>
+    (a === 'KCS') - (b === 'KCS') || n[b] - n[a] || a.localeCompare(b))
+    .map(div => ({
+      div, n: n[div],
+      ko: (LECTURES.find(i => i.div === div) || {}).divKo || div,
+      en: (LECTURES.find(i => i.div === div) || {}).division || div,
+    }));
+})();
+
+let lecDiv = 'all';
+function renderTalks() {
+  const groups = lecDiv === 'all' ? LECTURE_DIVS : LECTURE_DIVS.filter(g => g.div === lecDiv);
+  const body = groups.map(g => {
+    const list = LECTURES.filter(i => i.div === g.div);
+    return `<h3 class="sub">${esc(g.ko)}<span class="n">${list.length}건</span></h3>
+      ${listing(list, { showDate: true })}`;
+  }).join('');
+  $('#s-talks').innerHTML = `
+    <div class="page-h"><h2>강연</h2><span class="count">초청강연 ${LECTURES.length}건</span></div>
+    <p class="lede">기조·기념·분과기념 강연과 심포지엄 초청강연을 분과별로 모았습니다.
+      누르면 초록이 열리고, ☆ 로 내 일정에 담을 수 있습니다.</p>
+    <div class="pills">
+      <button data-ld="all" aria-pressed="${lecDiv === 'all'}">전체 ${LECTURES.length}</button>
+      ${LECTURE_DIVS.map(g =>
+        `<button data-ld="${esc(g.div)}" aria-pressed="${lecDiv === g.div}">${esc(g.ko)} ${g.n}</button>`).join('')}
+    </div>
+    ${body}`;
+  setMeta(lecDiv === 'all' ? `13개 분과 · ${LECTURES.length}건`
+    : `${(LECTURE_DIVS.find(g => g.div === lecDiv) || {}).ko || ''} · ${groups[0] ? groups[0].n : 0}건`);
+}
+
 /* ------------------------------------------------------------------ posters */
 let pSess = 1;
 function renderPoster() {
@@ -683,8 +714,9 @@ function showSession(key) {
 
 /* ------------------------------------------------------------------ shell */
 let view = 'now';
-const TABS = [['now', '지금'], ['sched', '일정'], ['find', '검색'], ['plan', '내 일정'], ['poster', '포스터']];
-const RENDER = { now: renderNow, sched: renderSched, find: renderFind, plan: renderPlan, poster: renderPoster };
+const TABS = [['now', '지금'], ['sched', '일정'], ['find', '검색'], ['plan', '내 일정'], ['talks', '강연'], ['poster', '포스터']];
+const RENDER = { now: renderNow, sched: renderSched, find: renderFind, plan: renderPlan,
+  talks: renderTalks, poster: renderPoster };
 const setMeta = t => { $('#meta').textContent = t; };
 function render() { RENDER[view](); }
 function show(v) {
@@ -729,6 +761,8 @@ document.addEventListener('click', ev => {
   if (ft) { findType = ft.dataset.ft; renderFind(); return; }
   const ps = ev.target.closest('[data-ps]');
   if (ps) { pSess = +ps.dataset.ps; renderPoster(); scrollTo({ top: 0 }); return; }
+  const ld = ev.target.closest('[data-ld]');
+  if (ld) { lecDiv = ld.dataset.ld; renderTalks(); scrollTo({ top: 0 }); return; }
   if (ev.target.id === 'clearPlan') { plan.clear(); savePlan(); arrived = null; render(); return; }
   if (ev.target.id === 'copyLink') {
     const f = $('#linkField');

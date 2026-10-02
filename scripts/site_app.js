@@ -317,6 +317,52 @@ function renderPlan() {
   setMeta(list.length ? `담은 발표 ${list.length}건` : '아직 비어 있음');
 }
 
+/* ------------------------------------------------------------------ lectures */
+// The invited programme: plenaries, award lectures and the symposium talks that
+// fill them. The 102 Oral Presentations are deliberately out - every one of
+// those tracks is a "Young" or "Early-Career" session, so they are the students'
+// half of the meeting, not the invited faculty's.
+const LECTURE_TYPES = new Set([
+  'Plenary Lecture', 'Award Lecture', 'Award Lecture in Division', 'Symposium']);
+const LECTURES = ITEMS.filter(i => LECTURE_TYPES.has(i.type))
+  .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+// Division order: most lectures first, but the society-wide symposia last -
+// they belong to no division and would otherwise head the list.
+const LECTURE_DIVS = (() => {
+  const n = {};
+  LECTURES.forEach(i => { n[i.div] = (n[i.div] || 0) + 1; });
+  return Object.keys(n).sort((a, b) =>
+    (a === 'KCS') - (b === 'KCS') || n[b] - n[a] || a.localeCompare(b))
+    .map(div => ({
+      div, n: n[div],
+      ko: (LECTURES.find(i => i.div === div) || {}).divKo || div,
+      en: (LECTURES.find(i => i.div === div) || {}).division || div,
+    }));
+})();
+
+let lecDiv = 'all';
+function renderTalks() {
+  const groups = lecDiv === 'all' ? LECTURE_DIVS : LECTURE_DIVS.filter(g => g.div === lecDiv);
+  const body = groups.map(g => {
+    const list = LECTURES.filter(i => i.div === g.div);
+    return `<h3 class="sub">${esc(g.ko)}<span class="n">${list.length}건</span></h3>
+      ${listing(list, { showDate: true })}`;
+  }).join('');
+  $('#s-talks').innerHTML = `
+    <div class="page-h"><h2>강연</h2><span class="count">초청강연 ${LECTURES.length}건</span></div>
+    <p class="lede">기조·기념·분과기념 강연과 심포지엄 초청강연을 분과별로 모았습니다.
+      누르면 초록이 열리고, ☆ 로 내 일정에 담을 수 있습니다.</p>
+    <div class="pills">
+      <button data-ld="all" aria-pressed="${lecDiv === 'all'}">전체 ${LECTURES.length}</button>
+      ${LECTURE_DIVS.map(g =>
+        `<button data-ld="${esc(g.div)}" aria-pressed="${lecDiv === g.div}">${esc(g.ko)} ${g.n}</button>`).join('')}
+    </div>
+    ${body}`;
+  setMeta(lecDiv === 'all' ? `13개 분과 · ${LECTURES.length}건`
+    : `${(LECTURE_DIVS.find(g => g.div === lecDiv) || {}).ko || ''} · ${groups[0] ? groups[0].n : 0}건`);
+}
+
 /* ------------------------------------------------------------------ posters */
 let pSess = 1;
 function renderPoster() {
@@ -379,8 +425,9 @@ function showSession(key) {
 
 /* ------------------------------------------------------------------ shell */
 let view = 'now';
-const TABS = [['now', '지금'], ['sched', '일정'], ['find', '검색'], ['plan', '내 일정'], ['poster', '포스터']];
-const RENDER = { now: renderNow, sched: renderSched, find: renderFind, plan: renderPlan, poster: renderPoster };
+const TABS = [['now', '지금'], ['sched', '일정'], ['find', '검색'], ['plan', '내 일정'], ['talks', '강연'], ['poster', '포스터']];
+const RENDER = { now: renderNow, sched: renderSched, find: renderFind, plan: renderPlan,
+  talks: renderTalks, poster: renderPoster };
 const setMeta = t => { $('#meta').textContent = t; };
 function render() { RENDER[view](); }
 function show(v) {
@@ -425,6 +472,8 @@ document.addEventListener('click', ev => {
   if (ft) { findType = ft.dataset.ft; renderFind(); return; }
   const ps = ev.target.closest('[data-ps]');
   if (ps) { pSess = +ps.dataset.ps; renderPoster(); scrollTo({ top: 0 }); return; }
+  const ld = ev.target.closest('[data-ld]');
+  if (ld) { lecDiv = ld.dataset.ld; renderTalks(); scrollTo({ top: 0 }); return; }
   if (ev.target.id === 'clearPlan') { plan.clear(); savePlan(); arrived = null; render(); return; }
   if (ev.target.id === 'copyLink') {
     const f = $('#linkField');
